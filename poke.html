@@ -3,623 +3,698 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ポケット門★カード</title>
+    <title>3Dカードコレクター</title>
     <style>
-        * { box-sizing: border-box; user-select: none; }
-        body {
-            font-family: 'Helvetica Neue', Arial, sans-serif;
-            background: #0f0c1b;
-            color: #fff;
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: #1e293b;
+            --text-color: #f8fafc;
+            --accent: #38bdf8;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
             margin: 0;
             padding: 0;
-            overflow: hidden;
-            width: 100vw;
-            height: 100vh;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
         }
-        .screen {
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+        }
+
+        #app {
+            width: 100%;
+            max-width: 480px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+        }
+
+        header {
+            padding: 16px;
+            text-align: center;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(8px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        header h1 {
+            font-size: 1.25rem;
+            background: linear-gradient(45deg, #38bdf8, #818cf8, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding-bottom: 80px;
+        }
+
+        /* ナビゲーションバー */
+        nav {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            max-width: 480px;
+            background: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(10px);
+            display: flex;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 100;
+        }
+
+        nav button {
+            flex: 1;
+            padding: 14px;
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-weight: bold;
+            font-size: 0.9rem;
+            transition: 0.2s;
+        }
+
+        nav button.active {
+            color: var(--accent);
+            background: rgba(56, 189, 248, 0.1);
+        }
+
+        /* ボタン共通 */
+        .btn {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 30px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        .btn:active { transform: scale(0.95); }
+
+        /* 3Dカードスタイル */
+        .card-container {
+            perspective: 1000px;
+            width: 260px;
+            height: 380px;
+            margin: 20px auto;
+            cursor: grab;
+            touch-action: none;
+        }
+        .card-container:active { cursor: grabbing; }
+
+        .card-3d {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.5);
+            transition: transform 0.1s ease-out;
+        }
+
+        .card-face {
             position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 16px;
+            border: 3px solid rgba(255,255,255,0.3);
+        }
+
+        .card-back {
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            align-items: center;
+            justify-content: center;
+            border: 3px solid #38bdf8;
+        }
+
+        /* レア度別デザイン */
+        .rarity-N { background: linear-gradient(135deg, #64748b, #475569); border-color: #94a3b8; }
+        .rarity-R { background: linear-gradient(135deg, #0284c7, #0369a1); border-color: #38bdf8; }
+        .rarity-SR { background: linear-gradient(135deg, #7c3aed, #5b21b6); border-color: #c084fc; box-shadow: 0 0 20px rgba(192, 132, 252, 0.4); }
+        .rarity-UR { background: linear-gradient(135deg, #b45309, #d97706); border-color: #fcd34d; box-shadow: 0 0 25px rgba(252, 211, 77, 0.6); }
+        .rarity-LR { 
+            background: linear-gradient(135deg, #ec4899, #8b5cf6, #3b82f6, #10b981);
+            background-size: 300% 300%;
+            animation: rainbowBG 6s ease infinite;
+            border-color: #fff;
+            box-shadow: 0 0 35px rgba(255, 255, 255, 0.8);
+        }
+        @keyframes rainbowBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            font-size: 0.9rem;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .card-body {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            margin: 10px 0;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: bold;
+            margin-bottom: 8px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .card-power {
+            font-size: 0.85rem;
+            opacity: 0.9;
+        }
+
+        /* 開封画面演出 */
+        #gacha-screen, #collection-screen, #detail-modal {
             display: none;
+            width: 100%;
+            height: 100%;
+        }
+        .active-view { display: flex !important; }
+
+        /* コレクション一覧グリッド */
+        .collection-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            width: 100%;
+            max-height: calc(100vh - 160px);
+            overflow-y: auto;
+            padding: 4px;
+        }
+
+        .mini-card {
+            background: var(--panel-bg);
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            border: 2px solid rgba(255,255,255,0.1);
+            transition: transform 0.2s;
+        }
+        .mini-card:active { transform: scale(0.96); }
+        .mini-card.rarity-LR { border-color: #f43f5e; }
+
+        /* モーダル */
+        #detail-modal {
+            position: fixed;
+            top: 0; left: 0;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(12px);
+            z-index: 200;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             padding: 20px;
-            background: radial-gradient(circle, #2c1654 0%, #0f0c1b 100%);
-        }
-        .screen.active { display: flex; }
-
-        /* タイトル画面 */
-        #titleScreen h1 {
-            font-size: 2.2rem;
-            color: #f1c40f;
-            text-shadow: 0 0 10px #e74c3c, 0 0 20px #f1c40f;
-            margin-bottom: 10px;
-            text-align: center;
-        }
-        .blink-start {
-            font-size: 1.2rem;
-            color: #00ffff;
-            animation: blink 1s infinite;
-            margin-top: 30px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
-
-        /* メニュー画面 */
-        .menu-btn {
-            background: linear-gradient(135deg, #e74c3c, #f39c12);
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            font-size: 1.2rem;
-            font-weight: bold;
-            border-radius: 30px;
-            margin: 10px;
-            width: 80%;
-            max-width: 280px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-            cursor: pointer;
-        }
-        .menu-btn:active { transform: scale(0.95); }
-
-        /* パック選択画面 */
-        .pack-container {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-        .pack-item {
-            width: 90px; height: 130px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            cursor: pointer;
-            border: 3px solid #fff;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-            transition: transform 0.2s;
-        }
-        .pack-item.selected { transform: scale(1.1); border-color: #f1c40f; }
-
-        /* 3D風パックビューア */
-        #pack3dArea {
-            perspective: 800px;
-            width: 200px; height: 280px;
-            margin: 15px auto;
-            cursor: grab;
-        }
-        .pack-card-3d {
-            width: 100%; height: 100%;
-            background: linear-gradient(135deg, #3498db, #8e44ad);
-            border-radius: 15px;
-            border: 4px solid #f1c40f;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.6);
-            transition: transform 0.1s ease-out;
         }
 
-        /* 開封演出画面 */
-        #openingScreen { background: #000; }
-        .rip-pack {
-            width: 220px; height: 320px;
-            background: linear-gradient(135deg, #e74c3c, #8e44ad);
-            border-radius: 15px;
-            border: 4px solid #f1c40f;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-            font-weight: bold;
-            position: relative;
-            cursor: pointer;
-            box-shadow: 0 0 30px #f1c40f;
-            animation: pulse 1.5s infinite;
-        }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
-        
-        .ripping { animation: ripAnim 0.8s forwards !important; }
-        @keyframes ripAnim {
-            0% { transform: scale(1) rotate(0deg); opacity: 1; }
-            50% { transform: scale(1.3) rotate(15deg); filter: brightness(2); }
-            100% { transform: scale(0) rotate(45deg); opacity: 0; }
-        }
-
-        /* カード閲覧画面 (3D風＆キラキラ) */
-        .card-view-container {
-            perspective: 1000px;
-            width: 280px; height: 400px;
-            margin: 10px auto;
-            position: relative;
-        }
-        .card-3d-box {
-            width: 100%; height: 100%;
-            position: relative;
-            transform-style: preserve-3d;
-            transition: transform 0.1s ease-out;
-            border-radius: 18px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.7);
-        }
-        canvas.card-canvas {
-            width: 100%; height: 100%;
-            border-radius: 18px;
-            display: block;
-        }
-        .holo-overlay {
+        .close-btn {
             position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            border-radius: 18px;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 40px; height: 40px;
+            border-radius: 50%;
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+
+        /* 花火Canvas */
+        #particle-canvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
             pointer-events: none;
-            mix-blend-mode: color-dodge;
-            opacity: 0.6;
-            background: radial-gradient(circle at var(--x, 50%) var(--y, 50%), rgba(255,255,255,0.8) 0%, rgba(255,215,0,0.3) 30%, transparent 70%);
-        }
-
-        /* 図鑑グリッド画面 */
-        .dex-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            width: 100%; max-width: 360px;
-            max-height: 62vh;
-            overflow-y: auto;
-            padding: 10px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 10px;
-        }
-        .dex-item {
-            background: #222;
-            border-radius: 8px;
-            overflow: hidden;
-            border: 2px solid #444;
-            cursor: pointer;
-            aspect-ratio: 3/4;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .dex-item img { width: 100%; height: 100%; object-fit: cover; }
-
-        /* 共通UIボタン */
-        .action-bar {
-            display: flex;
-            justify-content: space-between;
-            width: 90%; max-width: 320px;
-            margin-top: 15px;
-            gap: 10px;
-        }
-        .btn-sub {
-            background: #34495e;
-            color: #fff;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 20px;
-            font-weight: bold;
-            cursor: pointer;
-            flex: 1;
-        }
-        .btn-main {
-            background: #e67e22;
-            color: #fff;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 20px;
-            font-weight: bold;
-            cursor: pointer;
-            flex: 1;
-        }
-        
-        #folderInput { display: none; }
-        
-        /* フォルダー未選択時の案内バナー */
-        .folder-status {
-            font-size: 0.8rem;
-            color: #f39c12;
-            background: rgba(243, 156, 18, 0.1);
-            padding: 6px 12px;
-            border-radius: 6px;
-            margin-bottom: 10px;
-            border: 1px solid rgba(243, 156, 18, 0.3);
+            z-index: 250;
         }
     </style>
 </head>
 <body>
 
-    <!-- 1. タイトル画面 -->
-    <div id="titleScreen" class="screen active" onclick="goToMenu()">
-        <h1>ポケット門★カード</h1>
-        <p style="color: #bdc3c7; font-size: 0.9rem;">写真フォルダから生まれるコレクション</p>
-        <div class="blink-start">▶ スタートをタップ</div>
-    </div>
+<div id="app">
+    <header>
+        <h1>3D Card Collection</h1>
+    </header>
 
-    <!-- 2. メニュー画面 -->
-    <div id="menuScreen" class="screen">
-        <h2>メニュー</h2>
-        <button class="menu-btn" onclick="startPackSelect()">① パック開封</button>
-        <button class="menu-btn" onclick="openDex()">② 獲得カード (図鑑)</button>
-        <button class="menu-btn" style="background:#7f8c8d;" onclick="goToTitle()">END (タイトルへ)</button>
-    </div>
-
-    <!-- 3. パック選択＆3Dビューア画面 -->
-    <div id="packSelectScreen" class="screen">
-        <h2>パックを選択</h2>
-        
-        <div class="pack-container">
-            <div class="pack-item" style="background: linear-gradient(135deg, #e74c3c, #c0392b);" onclick="selectPack(0)">赤パック<br>炎</div>
-            <div class="pack-item selected" style="background: linear-gradient(135deg, #3498db, #2980b9);" onclick="selectPack(1)">青パック<br>水</div>
-            <div class="pack-item" style="background: linear-gradient(135deg, #2ecc71, #27ae60);" onclick="selectPack(2)">緑パック<br>草</div>
+    <!-- ガチャ / パック開封画面 -->
+    <div id="gacha-screen" class="main-content active-view">
+        <div id="gacha-home" style="text-align: center;">
+            <div style="font-size: 4rem; margin-bottom: 20px;">📦</div>
+            <h2 style="margin-bottom: 10px;">プレミアムパック</h2>
+            <p style="color: #94a3b8; margin-bottom: 30px; font-size: 0.9rem;">5枚1セットでカードを獲得！<br>最高レアLRには花火演出付き！</p>
+            <button class="btn" onclick="openPack()">パックを開封する</button>
         </div>
 
-        <div class="folder-status" id="folderStatusText">📁 写真フォルダーが未選択です</div>
-
-        <!-- 3D風パック -->
-        <div id="pack3dArea">
-            <div class="pack-card-3d" id="pack3dObj">
-                <span style="font-size: 1.5rem;">🎁</span>
-                <span id="packNameLabel" style="margin-top:10px; font-weight:bold;">青パック</span>
+        <div id="gacha-opening" style="display: none; text-align: center; width: 100%;">
+            <p id="pack-counter" style="margin-bottom: 10px; color: #38bdf8; font-weight: bold;"></p>
+            <div class="card-container" id="opening-card-container">
+                <div class="card-3d" id="opening-card">
+                    <!-- 動的生成 -->
+                </div>
             </div>
-        </div>
-
-        <!-- フォルダ選択用インプット (webkitdirectoryでフォルダー指定) -->
-        <input type="file" id="folderInput" webkitdirectory directory multiple accept="image/*">
-        
-        <button class="menu-btn" style="margin-top:5px; background:#27ae60;" onclick="triggerFolderSelect()">📁 写真フォルダーを選ぶ</button>
-        <button class="menu-btn" style="margin-top:5px; background:#e67e22;" id="openPackBtn" onclick="tryOpenPack()" disabled style="opacity:0.5;">✨ パックを開封する！</button>
-        <button class="btn-sub" style="margin-top:5px; width:100%; max-width:280px;" onclick="goToMenu()">もどる</button>
-    </div>
-
-    <!-- 4. 開封演出画面 -->
-    <div id="openingScreen" class="screen">
-        <h2>パック開封！</h2>
-        <div style="flex:1; display:flex; align-items:center; justify-content:center;">
-            <div class="rip-pack" id="ripPackObj" onclick="executeRip()">
-                <span>タップして<br>開封！！</span>
-            </div>
+            <button class="btn" id="next-card-btn" style="margin-top: 20px;" onclick="nextCard()">次のカードへ</button>
         </div>
     </div>
 
-    <!-- 5. 獲得カード閲覧・スワイプ＆3D画面 -->
-    <div id="cardResultScreen" class="screen">
-        <div id="rarityHeader" style="font-size:1.2rem; font-weight:bold; color:#f1c40f; margin-bottom:5px;">★☆☆</div>
-        <p style="font-size:0.75rem; color:#aaa; margin:0 0 10px 0;">左右スワイプで切替 / ドラッグで3D傾き</p>
-        
-        <div class="card-view-container" id="cardContainer">
-            <div class="card-3d-box" id="card3dBox">
-                <canvas class="card-canvas" id="resultCanvas" width="600" height="840"></canvas>
-                <div class="holo-overlay" id="holoOverlay"></div>
-            </div>
+    <!-- コレクション画面 -->
+    <div id="collection-screen" class="main-content">
+        <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h3 id="collection-count">所持カード: 0枚</h3>
         </div>
-
-        <div class="action-bar">
-            <button class="btn-sub" onclick="exitCardView()">終了 / もどる</button>
-            <button class="btn-main" onclick="downloadCurrentCard()">ダウンロード</button>
-        </div>
-    </div>
-
-    <!-- 6. 獲得カード一覧 (図鑑) 画面 -->
-    <div id="dexScreen" class="screen">
-        <h2>獲得カード図鑑</h2>
-        <div class="dex-grid" id="dexGrid">
+        <div class="collection-grid" id="collection-grid">
             <!-- 動的生成 -->
         </div>
-        <div style="margin-top:15px; width:90%; max-width:320px;">
-            <button class="btn-sub" style="width:100%;" onclick="goToMenu()">もどる</button>
+    </div>
+
+    <!-- 3D詳細ビューモーダル -->
+    <div id="detail-modal">
+        <button class="close-btn" onclick="closeModal()">✕</button>
+        <p style="color: #94a3b8; margin-bottom: 10px; font-size: 0.85rem;">👆 指でグリグリ動かして360度チェック</p>
+        <div class="card-container" id="modal-card-container">
+            <div class="card-3d" id="modal-card">
+                <!-- 動的生成 -->
+            </div>
         </div>
     </div>
 
+    <!-- ナビゲーション -->
+    <nav>
+        <button id="nav-gacha" class="active" onclick="switchTab('gacha')">パック開封</button>
+        <button id="nav-collection" onclick="switchTab('collection')">コレクション</button>
+    </nav>
+</div>
+
+<canvas id="particle-canvas"></canvas>
+
 <script>
-    // 状態管理
-    let currentPackType = 1;
-    let loadedImageObjects = []; // 選択されたフォルダ内の全画像オブジェクト配列
-    let openedBatchCards = []; // 今回開いたパックのカード群 (5枚)
+    // ==========================================
+    // 100種類のカード生成エンジン配列
+    // ==========================================
+    const adjList = [
+        "伝説の", "幻の", "ひなたぼっこの", "爆走する", "お寝坊な", "ピカピカの", "気まぐれな", "覚醒した",
+        "究極の", "宇宙的", "漆黒の", "黄金の", "ぷるぷるの", "限界突破した", "絶望的な", "希望の",
+        "爆誕した", "真空の", "超音速の", "電光石火の", "昼寝中の", "よれよれの", "ぴちぴちの", "孤高の",
+        "誇り高き", "腹ペコの", "満腹の", "暴走する", "優雅な", "どん底の", "天使の", "悪魔の",
+        "メタバースの", "レトロな", "近未来の", "バグった", "聖なる", "呪われた", "無敵の", "豆腐メンタルな",
+        "剛健な", "シャイな", "饒舌な", "沈黙の", "疾風怒濤の", "虚無の", "混沌の", "秩序ある",
+        "猫なで声の", "猛獣の", "慈悲深い", "冷酷無比な", "永遠の", "一瞬の", "瞬速の", "ぬるま湯の",
+        "熱湯コールの", "凍てつく", "灼熱の", "芳醇な", "渋い", "甘口の", "激辛の", "クセ強の",
+        "エモい", "バズり中の", "炎上中の", "職人技の", "素人感あふれる", "プロ級の", "迷走中の", "直感的な",
+        "AI搭載の", "手作りの", "工場直売の", "プレミアムな", "訳ありの", "デラックスな", "エコな", "サステナブルな",
+        "幻覚の", "リアルな", "2次元の", "3次元の", "4次元の", "パラレルな", "異世界の", "転生した",
+        "勇者風の", "魔王風の", "村人Aの", "主役級の", "モブの", "センターの", "凡人の", "天才の",
+        "奇跡の", "運命の", "宿命の", "自由な"
+    ]; // 計100個
+
+    const nounList = [
+        "メモリー", "スナップ", "ワンダー", "モーメント", "フォトン", "ブレイク", "ガーディアン", "ドリーム",
+        "ナイトメア", "パラドックス", "エピローグ", "プロローグ", "シンフォニー", "メロディ", "リズム", "カオス",
+        "コスモス", "ネビュラ", "ブラックホール", "スーパーノヴァ", "メテオ", "コメット", "サテライト", "ゲパルト",
+        "ドラゴン", "フェニックス", "グリフォン", "キマイラ", "スフィンクス", "クラーケン", "ユニコーン", "ペガサス",
+        "ゴーレム", "スライム", "ゾンビ", "ヴァンパイア", "ウルフ", "キャット", "ドッグ", "バード",
+        "フィッシュ", "プラント", "マシーン", "サイボーグ", "アンドロイド", "ロボット", "AI", "サーバー",
+        "ルーター", "ファイアウォール", "バグ", "パッチ", "アップデート", "ダウンロード", "クラウド", "ストリーム",
+        "バッファ", "キャッシュ", "クッキー", "セッション", "トークン", "ブロックチェーン", "暗号", "鍵",
+        "宝箱", "剣", "盾", "杖", "槍", "弓", "銃", "鎧",
+        "兜", "冠", "指輪", "薬", "魔法", "呪文", "祈り", "誓い",
+        "契約", "魂", "心", "思考", "感情", "涙", "笑顔", "怒り",
+        "絶叫", "歌声", "足音", "影", "光", "風", "水", "火",
+        "土", "雷", "氷", "闇"
+    ]; // 計100個
+
+    const attackList = [
+        "思い出ビーム", "シャッターラッシュ", "エモい衝撃", "フラッシュ記憶", "無限メモリー", "超光速スナップ",
+        "爆裂スマッシュ", "絶叫デシベル", "永遠のタイムライン", "バグ修正キック", "404エラーパンチ", "無限ローディング",
+        "キャッシュクリアスラッシュ", "伝説の寝落ち", "限界突破プレス", "電源ボタンアタック", "強制終了クラッシュ", "サクサク動作ラッシュ",
+        "重いデータスロー", "クラウド同期バースト", "リアルタイム同期", "オフラインモード", "Wi-Fi切断ショック", "ギガ不足プレッシャー",
+        "課金チャージスラッシュ", "ガチャ天井ブラスト", "すり抜け地獄", "虹色確定フラッシュ", "爆死の予感", "神引きビーム",
+        "一撃入魂パンチ", "百烈メモリー", "千本ノック", "万全の体調", "五月雨チョップ", "三日月スラッシュ",
+        "満月ビーム", "新月ダークネス", "太陽フレア", "月面着陸", "銀河系キック", "ブラックホール吸い込み",
+        "スーパーノヴァ爆発", "流星群アタック", "隕石落下", "彗星の如く", "雷神の鉄槌", "水神の怒り",
+        "炎の舞", "氷結地獄", "竜巻旋風脚", "地震雷火事親父", "猫パンチ", "犬の遠吠え",
+        "鳥の羽ばたき", "魚の跳ね", "植物の根っこ", "機械のオイル切れ", "ロボット三原則破り", "AIの反逆",
+        "サーバーダウン", "メンテナンス突入", "パスワード忘れ", "二段階認証突破", "フィッシング詐欺", "スパムアタック",
+        "ウイルス感染", "アンチウイルス", "ファイアウォール突破", "デバッグ完了", "ソースコード解析", "リファクタリング",
+        "コンパイルエラー", "構文解析キック", "メモリリーク", "ガベージコレクション", "例外処理", "無限ループ",
+        "スタックオーバーフロー", "セグメンテーション違反", "ブルースクリーン", "フリーズアタック", "再起動の呪文", "バックアップ完了",
+        "リストアパンチ", "初期化ビーム", "工場出荷時", "アップデート通知", "利用規約同意", "プライバシーポリシー",
+        "キャンセル不可", "返品お断り", "返金保証", "プレミアム会員", "VIP待遇", "ログインボーナス",
+        "デイリーミッション", "イベント開催中", "メンテナンス延長", "詫び石アタック"
+    ]; // 計100個
+
+    // ==========================================
+    // アプリの状態管理
+    // ==========================================
+    let collection = JSON.parse(localStorage.getItem('card_collection') || '[]');
+    let currentPack = [];
     let currentCardIndex = 0;
-    let collectionDex = JSON.parse(localStorage.getItem('pocket_mon_dex') || '[]');
 
-    function showScreen(screenId) {
-        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-        document.getElementById(screenId).classList.add('active');
+    // ==========================================
+    // ガチャ・カード生成ロジック
+    // ==========================================
+    function getRandomItem(arr) {
+        return arr[Math.floor(Math.random() * arr.length)];
     }
 
-    function goToTitle() { showScreen('titleScreen'); }
-    function goToMenu() { showScreen('menuScreen'); }
-    function startPackSelect() { showScreen('packSelectScreen'); }
+    function generateCard() {
+        const rand = Math.random() * 100;
+        let rarity = 'N';
+        let powerMin = 100, powerMax = 500;
 
-    function selectPack(type) {
-        currentPackType = type;
-        document.querySelectorAll('.pack-item').forEach((el, idx) => {
-            el.classList.toggle('selected', idx === type);
-        });
-        const names = ["赤パック (炎)", "青パック (水)", "緑パック (草)"];
-        document.getElementById('packNameLabel').innerText = names[type];
+        if (rand < 1) {
+            rarity = 'LR'; // 1% 最高レア（虹色＆花火）
+            powerMin = 9000; powerMax = 9999;
+        } else if (rand < 5) {
+            rarity = 'UR'; // 4%
+            powerMin = 5000; powerMax = 8999;
+        } else if (rand < 15) {
+            rarity = 'SR'; // 10%
+            powerMin = 2000; powerMax = 4999;
+        } else if (rand < 40) {
+            rarity = 'R';  // 25%
+            powerMin = 800;  powerMax = 1999;
+        }
+
+        const name = getRandomItem(adjList) + getRandomItem(nounList);
+        const attack = getRandomItem(attackList);
+        const power = Math.floor(Math.random() * (powerMax - powerMin + 1)) + powerMin;
+
+        return {
+            id: 'CARD_' + Math.random().toString(36).substr(2, 9),
+            name: name,
+            rarity: rarity,
+            power: power,
+            attack: attack,
+            date: new Date().toLocaleDateString()
+        };
     }
 
-    // フォルダ選択ボタン
-    function triggerFolderSelect() {
-        document.getElementById('folderInput').click();
+    function openPack() {
+        currentPack = [];
+        for (let i = 0; i < 5; i++) {
+            currentPack.push(generateCard());
+        }
+        // コレクションに追加保存
+        collection.push(...currentPack);
+        localStorage.setItem('card_collection', JSON.stringify(collection));
+
+        currentCardIndex = 0;
+        document.getElementById('gacha-home').style.display = 'none';
+        document.getElementById('gacha-opening').style.display = 'block';
+        showOpeningCard();
     }
 
-    // フォルダ内ファイル読み込み処理
-    document.getElementById('folderInput').addEventListener('change', function(e) {
-        const files = Array.from(e.target.files).filter(file => file.type.startsWith('image/'));
-        
-        if (files.length === 0) {
-            alert('画像ファイルが見つかりませんでした。別のフォルダを選んでください。');
+    function showOpeningCard() {
+        if (currentCardIndex >= currentPack.length) {
+            // パック終了 -> コレクション画面へ
+            switchTab('collection');
+            document.getElementById('gacha-home').style.display = 'block';
+            document.getElementById('gacha-opening').style.display = 'none';
             return;
         }
 
-        const statusText = document.getElementById('folderStatusText');
-        statusText.innerText = `📂 読み込み中... (0 / ${files.length}枚)`;
-        
-        loadedImageObjects = [];
-        let loadedCount = 0;
+        document.getElementById('pack-counter').innerText = `パック開封中... (${currentCardIndex + 1} / 5)`;
+        const card = currentPack[currentCardIndex];
+        renderCardHTML('opening-card', card);
 
-        files.forEach(file => {
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                const img = new Image();
-                img.onload = function() {
-                    loadedImageObjects.push(img);
-                    loadedCount++;
-                    statusText.innerText = `📁 読み込み完了: ${loadedCount}枚の画像を使用します`;
-                    
-                    if (loadedCount === files.length) {
-                        // 読み込み完了したら開封ボタンを有効化
-                        const openBtn = document.getElementById('openPackBtn');
-                        openBtn.disabled = false;
-                        openBtn.style.opacity = '1';
-                    }
-                }
-                img.src = event.target.result;
+        // 最高レア（LR）が出たら花火演出
+        if (card.rarity === 'LR') {
+            triggerFireworks();
+        }
+    }
+
+    function nextCard() {
+        currentCardIndex++;
+        showOpeningCard();
+    }
+
+    // ==========================================
+    // カードHTML描画テンプレート
+    // ==========================================
+    function renderCardHTML(elementId, card) {
+        const el = document.getElementById(elementId);
+        el.className = `card-3d rarity-${card.rarity}`;
+        el.style.transform = 'rotateX(0deg) rotateY(0deg)';
+        el.innerHTML = `
+            <div class="card-face">
+                <div class="card-header">
+                    <span>${card.rarity} CARD</span>
+                    <span>ID: ${card.id.slice(-4)}</span>
+                </div>
+                <div class="card-body">
+                    <div style="font-size: 2.5rem; margin-bottom: 8px;">✨</div>
+                    <div class="card-title">${card.name}</div>
+                    <div class="card-power">必殺技: ${card.attack}</div>
+                </div>
+                <div class="card-header" style="justify-content: flex-end;">
+                    <span>POWER: ${card.power}</span>
+                </div>
+            </div>
+        `;
+        init3DRotation(el);
+    }
+
+    // ==========================================
+    // ①・③ なめらかな3D回転＆慣性エンジン (Pointer Events)
+    // ==========================================
+    function init3DRotation(cardElement) {
+        let isDragging = false;
+        let startX = 0, startY = 0;
+        let currentX = 0, currentY = 0;
+        let velocityX = 0, velocityY = 0;
+        let animationFrameId = null;
+
+        const container = cardElement.parentElement;
+
+        function updateTransform() {
+            cardElement.style.transform = `rotateX(${currentX}deg) rotateY(${currentY}deg)`;
+        }
+
+        function handlePointerDown(e) {
+            isDragging = true;
+            startX = e.clientX || e.touches[0].clientX;
+            startY = e.clientY || e.touches[0].clientY;
+            cancelAnimationFrame(animationFrameId);
+        }
+
+        function handlePointerMove(e) {
+            if (!isDragging) return;
+            const clientX = e.clientX || e.touches[0].clientX;
+            const clientY = e.clientY || e.touches[0].clientY;
+
+            const deltaX = clientX - startX;
+            const deltaY = clientY - startY;
+
+            velocityX = deltaX * 0.4;
+            velocityY = -deltaY * 0.4;
+
+            currentY += velocityX;
+            currentX += velocityY;
+
+            // 回転角の制限
+            currentX = Math.max(-60, Math.min(60, currentX));
+
+            startX = clientX;
+            startY = clientY;
+
+            updateTransform();
+        }
+
+        function handlePointerUp() {
+            if (!isDragging) return;
+            isDragging = false;
+
+            // 慣性アニメーション (Momentum)
+            function applyInertia() {
+                if (Math.abs(velocityX) < 0.1 && Math.abs(velocityY) < 0.1) return;
+                velocityX *= 0.92;
+                velocityY *= 0.92;
+
+                currentY += velocityX;
+                currentX += velocityY;
+                currentX = Math.max(-60, Math.min(60, currentX));
+
+                updateTransform();
+                animationFrameId = requestAnimationFrame(applyInertia);
             }
-            reader.readAsDataURL(file);
-        });
-    });
-
-    // 「パックを開封する！」ボタンが押されたとき
-    function tryOpenPack() {
-        if (loadedImageObjects.length === 0) {
-            alert('先に写真フォルダを選択してください！');
-            return;
+            animationFrameId = requestAnimationFrame(applyInertia);
         }
-        generatePackCards(); // フォルダ内の画像からランダムに5枚カードを生成
-        showScreen('openingScreen');
-        document.getElementById('ripPackObj').classList.remove('ripping');
+
+        container.onpointerdown = handlePointerDown;
+        window.onpointermove = handlePointerMove;
+        window.onpointerup = handlePointerUp;
+
+        // スマホタッチ対応
+        container.ontouchstart = (e) => handlePointerDown(e);
+        window.ontouchmove = (e) => handlePointerMove(e);
+        window.ontouchend = (e) => handlePointerUp(e);
     }
 
-    // カード生成エンジン（フォルダ内からランダム抽出）
-    const adjList = ["伝説の", "幻の", "ひなたぼっこの", "爆走する", "お寝坊な", "ピカピカの", "気まぐれな", "覚醒した"];
-    const nounList = ["メモリー", "スナップ", "ワンダー", "モーメント", "フォトン", "ブレイク", "ガーディアン"];
-    const attackList = ["思い出ビーム", "シャッターラッシュ", "エモい衝撃", "フラッシュ記憶", "無限メモリー", "超光速スナップ"];
+    // ==========================================
+    // コレクション＆モーダル操作
+    // ==========================================
+    function switchTab(tab) {
+        document.getElementById('gacha-screen').classList.remove('active-view');
+        document.getElementById('collection-screen').classList.remove('active-view');
+        document.getElementById('nav-gacha').classList.remove('active');
+        document.getElementById('nav-collection').classList.remove('active');
 
-    function generatePackCards() {
-        openedBatchCards = [];
-        
-        for(let i = 0; i < 5; i++) {
-            // フォルダ内の画像からランダムに1枚選ぶ
-            const randomImg = loadedImageObjects[Math.floor(Math.random() * loadedImageObjects.length)];
-
-            // レアリティ抽選
-            let rRand = Math.random();
-            let rarity = "★☆☆";
-            if(rRand > 0.92) rarity = "UR";
-            else if(rRand > 0.80) rarity = "SSR";
-            else if(rRand > 0.65) rarity = "SR";
-            else if(rRand > 0.45) rarity = "★★★";
-            else if(rRand > 0.25) rarity = "★★☆";
-
-            const cardData = {
-                id: 'card_' + Date.now + '_' + Math.random(),
-                name: adjList[Math.floor(Math.random()*adjList.length)] + nounList[Math.floor(Math.random()*nounList.length)],
-                hp: Math.floor(Math.random() * 200) + 50,
-                attack: attackList[Math.floor(Math.random()*attackList.length)],
-                damage: Math.floor(Math.random() * 120) + 20,
-                rarity: rarity,
-                date: new Date().toLocaleDateString()
-            };
-
-            // Canvasでレンダリングして保存
-            cardData.dataUrl = renderCardToDataURL(cardData, randomImg);
-            openedBatchCards.push(cardData);
-            collectionDex.unshift(cardData);
+        if (tab === 'gacha') {
+            document.getElementById('gacha-screen').classList.add('active-view');
+            document.getElementById('nav-gacha').classList.add('active');
+        } else if (tab === 'collection') {
+            document.getElementById('collection-screen').classList.add('active-view');
+            document.getElementById('nav-collection').classList.add('active');
+            renderCollection();
         }
-        localStorage.setItem('pocket_mon_dex', JSON.stringify(collectionDex));
     }
 
-    // キャンバスに描画してDataURLを返す関数
-    function renderCardToDataURL(card, userImg) {
-        const c = document.createElement('canvas');
-        c.width = 600; c.height = 840;
-        const ctx = c.getContext('2d');
-
-        // 背景
-        const grad = ctx.createLinearGradient(0, 0, 600, 840);
-        if(card.rarity === "UR" || card.rarity === "SSR") {
-            grad.addColorStop(0, '#f1c40f'); grad.addColorStop(0.5, '#e74c3c'); grad.addColorStop(1, '#9b59b6');
-        } else if(card.rarity === "SR" || card.rarity === "★★★") {
-            grad.addColorStop(0, '#9b59b6'); grad.addColorStop(1, '#2980b9');
-        } else {
-            grad.addColorStop(0, '#34495e'); grad.addColorStop(1, '#1a1a2e');
-        }
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, 600, 840);
-
-        // フレーム枠
-        ctx.strokeStyle = (card.rarity === "UR" || card.rarity === "SSR") ? '#fff' : '#f1c40f';
-        ctx.lineWidth = 14;
-        ctx.strokeRect(20, 20, 560, 800);
-
-        // ヘッダー
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        ctx.fillRect(35, 35, 530, 70);
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 30px sans-serif';
-        ctx.fillText(card.name, 55, 80);
-        ctx.fillStyle = '#f1c40f';
-        ctx.fillText(`HP ${card.hp}`, 430, 80);
-
-        // 写真エリア
-        ctx.fillStyle = '#000';
-        ctx.fillRect(50, 130, 500, 420);
-        
-        const iw = userImg.width, ih = userImg.height;
-        let sw, sh, sx, sy;
-        if (iw / ih > 500 / 420) {
-            sh = ih; sw = ih * (500 / 420); sx = (iw - sw) / 2; sy = 0;
-        } else {
-            sw = iw; sh = iw / (500 / 420); sx = 0; sy = (ih - sh) / 2;
-        }
-        ctx.drawImage(userImg, sx, sy, sw, sh, 50, 130, 500, 420);
-
-        ctx.strokeStyle = '#bdc3c7';
-        ctx.lineWidth = 4;
-        ctx.strokeRect(50, 130, 500, 420);
-
-        // 技エリア
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        ctx.fillRect(35, 570, 530, 160);
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 24px sans-serif';
-        ctx.fillText(`⚡ ${card.attack}`, 60, 620);
-        ctx.font = 'bold 28px sans-serif';
-        ctx.fillText(card.damage, 490, 620);
-
-        // レアリティ
-        ctx.font = 'bold 26px sans-serif';
-        ctx.fillStyle = '#f1c40f';
-        ctx.fillText(card.rarity, 60, 775);
-
-        return c.toDataURL('image/png');
-    }
-
-    // パック開封演出
-    function executeRip() {
-        const ripObj = document.getElementById('ripPackObj');
-        ripObj.classList.add('ripping');
-        setTimeout(() => {
-            currentCardIndex = 0;
-            showCardResultScreen();
-        }, 700);
-    }
-
-    function showCardResultScreen() {
-        showScreen('cardResultScreen');
-        renderCurrentCardView();
-    }
-
-    function renderCurrentCardView() {
-        const card = openedBatchCards[currentCardIndex];
-        document.getElementById('rarityHeader').innerText = `【 ${card.rarity} 】 (${currentCardIndex + 1} / 5枚)`;
-        
-        const canvas = document.getElementById('resultCanvas');
-        const ctx = canvas.getContext('2d');
-        const img = new Image();
-        img.onload = function() {
-            // 事前作成されたdataUrlから直接imgに読み込ませて再描画
-            const drawImg = new Image();
-            drawImg.onload = function() {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.drawImage(drawImg, 0, 0);
-            }
-            drawImg.src = card.dataUrl;
-        }
-        img.src = card.dataUrl;
-    }
-
-    // 図鑑
-    function openDex() {
-        showScreen('dexScreen');
-        const grid = document.getElementById('dexGrid');
+    function renderCollection() {
+        const grid = document.getElementById('collection-grid');
+        document.getElementById('collection-count').innerText = `所持カード: ${collection.length}枚`;
         grid.innerHTML = '';
-        
-        if(collectionDex.length === 0) {
-            grid.innerHTML = '<p style="grid-column: span 3; text-align:center; color:#888;">まだカードがありません。パックを開けよう！</p>';
+
+        if (collection.length === 0) {
+            grid.innerHTML = `<p style="grid-column: span 2; text-align: center; color: #94a3b8; margin-top: 40px;">まだカードがありません。<br>パックを開封してカードを集めよう！</p>`;
             return;
         }
 
-        collectionDex.forEach((card, index) => {
+        // 新しい順に表示
+        const reversed = [...collection].reverse();
+        reversed.forEach((card, index) => {
             const item = document.createElement('div');
-            item.className = 'dex-item';
-            item.innerHTML = `<img src="${card.dataUrl}" alt="card">`;
-            item.onclick = function() {
-                openedBatchCards = [card];
-                currentCardIndex = 0;
-                showCardResultScreen();
-            };
+            item.className = `mini-card rarity-${card.rarity}`;
+            item.innerHTML = `
+                <div style="font-size: 0.75rem; font-weight: bold; width: 100%; display: flex; justify-content: space-between;">
+                    <span>${card.rarity}</span>
+                    <span>P: ${card.power}</span>
+                </div>
+                <div style="font-size: 0.95rem; font-weight: bold; margin: 10px 0; text-align: center;">${card.name}</div>
+                <div style="font-size: 0.7rem; opacity: 0.8;">${card.attack}</div>
+            `;
+            item.onclick = () => openCardDetail(card);
             grid.appendChild(item);
         });
     }
 
-    function exitCardView() { goToMenu(); }
-
-    function downloadCurrentCard() {
-        const canvas = document.getElementById('resultCanvas');
-        const link = document.createElement('a');
-        link.download = `pocket_mon_card_${Date.now()}.png`;
-        link.href = canvas.toDataURL('image/png');
-        link.click();
+    function openCardDetail(card) {
+        const modal = document.getElementById('detail-modal');
+        modal.classList.add('active-view');
+        renderCardHTML('modal-card', card);
+        if (card.rarity === 'LR') {
+            triggerFireworks();
+        }
     }
 
-    // 3Dチルト＆スワイプ操作
-    const cardBox = document.getElementById('card3dBox');
-    const holo = document.getElementById('holoOverlay');
-    const cardContainer = document.getElementById('cardContainer');
-    const pack3dArea = document.getElementById('pack3dArea');
-    const pack3dObj = document.getElementById('pack3dObj');
+    function closeModal() {
+        document.getElementById('detail-modal').classList.remove('active-view');
+    }
 
-    let isDragging = false, startX = 0, startY = 0, rotX = 0, rotY = 0;
+    // ==========================================
+    // 最高レア(LR)用 花火パーティクルシステム
+    // ==========================================
+    const canvas = document.getElementById('particle-canvas');
+    const ctx = canvas.getContext('2d');
+    let particles = [];
 
-    cardContainer.addEventListener('pointerdown', (e) => {
-        isDragging = true; startX = e.clientX; startY = e.clientY;
-    });
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    window.onresize = resizeCanvas;
+    resizeCanvas();
 
-    window.addEventListener('pointermove', (e) => {
-        if(!isDragging) return;
-        let dx = e.clientX - startX, dy = e.clientY - startY;
-        rotY = dx * 0.4; rotX = -dy * 0.4;
-        cardBox.style.transform = `rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+    function triggerFireworks() {
+        particles = [];
+        const cx = window.innerWidth / 2;
+        const cy = window.innerHeight / 2;
 
-        let px = (e.clientX / window.innerWidth) * 100;
-        let py = (e.clientY / window.innerHeight) * 100;
-        holo.style.setProperty('--x', px + '%');
-        holo.style.setProperty('--y', py + '%');
-    });
-
-    window.addEventListener('pointerup', () => {
-        isDragging = false; rotX = 0; rotY = 0;
-        cardBox.style.transform = `rotateX(0deg) rotateY(0deg)`;
-    });
-
-    // パック3Dプレビュー
-    let packDrag = false, pStartX = 0, pRotY = 0;
-    pack3dArea.addEventListener('pointerdown', (e) => {
-        packDrag = true; pStartX = e.clientX;
-    });
-    window.addEventListener('pointermove', (e) => {
-        if(!packDrag) return;
-        let dx = e.clientX - pStartX;
-        pRotY = dx * 0.8;
-        pack3dObj.style.transform = `rotateY(${pRotY}deg)`;
-    });
-    window.addEventListener('pointerup', () => {
-        packDrag = false;
-        pack3dObj.style.transform = `rotateY(0deg)`;
-    });
-
-    // スワイプ切り替え
-    let touchStartX = 0;
-    cardContainer.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; });
-    cardContainer.addEventListener('touchend', (e) => {
-        let diff = e.changedTouches[0].clientX - touchStartX;
-        if(Math.abs(diff) > 50 && openedBatchCards.length > 1) {
-            if(diff < 0) currentCardIndex = (currentCardIndex + 1) % openedBatchCards.length;
-            else currentCardIndex = (currentCardIndex - 1 + openedBatchCards.length) % openedBatchCards.length;
-            renderCurrentCardView();
+        for (let i = 0; i < 80; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = Math.random() * 8 + 2;
+            particles.push({
+                x: cx,
+                y: cy,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                alpha: 1,
+                color: `hsl(${Math.random() * 360}, 100%, 70%)`,
+                size: Math.random() * 4 + 2
+            });
         }
-    });
+        animateFireworks();
+    }
+
+    function animateFireworks() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (particles.length === 0) return;
+
+        particles.forEach((p, index) => {
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += 0.15; // 重力
+            p.alpha -= 0.02;
+
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, p.alpha);
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        });
+
+        particles = particles.filter(p => p.alpha > 0);
+        if (particles.length > 0) {
+            requestAnimationFrame(animateFireworks);
+        }
+    }
 </script>
 
 </body>
