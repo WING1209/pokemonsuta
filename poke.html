@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ポケット門★カード</title>
+    <style>
+        * { box-sizing: border-box; user-select: none; }
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background: #0f0c1b;
+            color: #fff;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+        }
+        .screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: radial-gradient(circle, #2c1654 0%, #0f0c1b 100%);
+        }
+        .screen.active { display: flex; }
+
+        /* タイトル画面 */
+        #titleScreen h1 {
+            font-size: 2.2rem;
+            color: #f1c40f;
+            text-shadow: 0 0 10px #e74c3c, 0 0 20px #f1c40f;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        .blink-start {
+            font-size: 1.2rem;
+            color: #00ffff;
+            animation: blink 1s infinite;
+            margin-top: 30px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+
+        /* メニュー画面 */
+        .menu-btn {
+            background: linear-gradient(135deg, #e74c3c, #f39c12);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border-radius: 30px;
+            margin: 10px;
+            width: 80%;
+            max-width: 280px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            cursor: pointer;
+        }
+        .menu-btn:active { transform: scale(0.95); }
+
+        /* パック選択画面 */
+        .pack-container {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .pack-item {
+            width: 90px; height: 130px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            cursor: pointer;
+            border: 3px solid #fff;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            transition: transform 0.2s;
+        }
+        .pack-item.selected { transform: scale(1.1); border-color: #f1c40f; }
+
+        /* 3D風パックビューア */
+        #pack3dArea {
+            perspective: 800px;
+            width: 200px; height: 280px;
+            margin: 15px auto;
+            cursor: grab;
+        }
+        .pack-card-3d {
+            width: 100%; height: 100%;
+            background: linear-gradient(135deg, #3498db, #8e44ad);
+            border-radius: 15px;
+            border: 4px solid #f1c40f;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.6);
+            transition: transform 0.1s ease-out;
+        }
+
+        /* 開封演出画面 */
+        #openingScreen { background: #000; }
+        .rip-pack {
+            width: 220px; height: 320px;
+            background: linear-gradient(135deg, #e74c3c, #8e44ad);
+            border-radius: 15px;
+            border: 4px solid #f1c40f;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            position: relative;
+            cursor: pointer;
+            box-shadow: 0 0 30px #f1c40f;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+        
+        .ripping { animation: ripAnim 0.8s forwards !important; }
+        @keyframes ripAnim {
+            0% { transform: scale(1) rotate(0deg); opacity: 1; }
+            50% { transform: scale(1.3) rotate(15deg); filter: brightness(2); }
+            100% { transform: scale(0) rotate(45deg); opacity: 0; }
+        }
+
+        /* カード閲覧画面 (3D風＆キラキラ) */
+        .card-view-container {
+            perspective: 1000px;
+            width: 280px; height: 400px;
+            margin: 10px auto;
+            position: relative;
+        }
+        .card-3d-box {
+            width: 100%; height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.1s ease-out;
+            border-radius: 18px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+        }
+        canvas.card-canvas {
+            width: 100%; height: 100%;
+            border-radius: 18px;
+            display: block;
+        }
+        .holo-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            border-radius: 18px;
+            pointer-events: none;
+            mix-blend-mode: color-dodge;
+            opacity: 0.6;
+            background: radial-gradient(circle at var(--x, 50%) var(--y, 50%), rgba(255,255,255,0.8) 0%, rgba(255,215,0,0.3) 30%, transparent 70%);
+        }
+
+        /* 図鑑グリッド画面 */
+        .dex-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            width: 100%; max-width: 360px;
+            max-height: 62vh;
+            overflow-y: auto;
+            padding: 10px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+        }
+        .dex-item {
+            background: #222;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid #444;
+            cursor: pointer;
+            aspect-ratio: 3/4;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .dex-item img { width: 100%; height: 100%; object-fit: cover; }
+
+        /* 共通UIボタン */
+        .action-bar {
+            display: flex;
+            justify-content: space-between;
+            width: 90%; max-width: 320px;
+            margin-top: 15px;
+            gap: 10px;
+        }
+        .btn-sub {
+            background: #34495e;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            flex: 1;
+        }
+        .btn-main {
+            background: #e67e22;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            flex: 1;
+        }
+        
+        #folderInput { display: none; }
+        
+        /* フォルダー未選択時の案内バナー */
+        .folder-status {
+            font-size: 0.8rem;
+            color: #f39c12;
+            background: rgba(243, 156, 18, 0.1);
+            padding: 6px 12px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            border: 1px solid rgba(243, 156, 18, 0.3);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 1. タイトル画面 -->
+    <div id="titleScreen" class="screen active" onclick="goToMenu()">
+        <h1>ポケット門★カード</h1>
+        <p style="color: #bdc3c7; font-size: 0.9rem;">写真フォルダから生まれるコレクション</p>
+        <div class="blink-start">▶ スタートをタップ</div>
+    </div>
+
+    <!-- 2. メニュー画面 -->
+    <div id="menuScreen" class="screen">
+        <h2>メニュー</h2>
+        <button class="menu-btn" onclick="startPackSelect()">① パック開封</button>
+        <button class="menu-btn" onclick="openDex()">② 獲得カード (図鑑)</button>
+        <button class="menu-btn" style="background:#7f8c8d;" onclick="goToTitle()">END (タイトルへ)</button>
+    </div>
+
+    <!-- 3. パック選択＆3Dビューア画面 -->
+    <div id="packSelectScreen" class="screen">
+        <h2>パックを選択</h2>
+        
+        <div class="pack-container">
+            <div class="pack-item" style="background: linear-gradient(135deg, #e74c3c, #c0392b);" onclick="selectPack(0)">赤パック<br>炎</div>
+            <div class="pack-item selected" style="background: linear-gradient(135deg, #3498db, #2980b9);" onclick="selectPack(1)">青パック<br>水</div>
+            <div class="pack-item" style="background: linear-gradient(135deg, #2ecc71, #27ae60);" onclick="selectPack(2)">緑パック<br>草</div>
+        </div>
+
+        <div class="folder-status" id="folderStatusText">📁 写真フォルダーが未選択です</div>
+
+        <!-- 3D風パック -->
+        <div id="pack3dArea">
+            <div class="pack-card-3d" id="pack3dObj">
+                <span style="font-size: 1.5rem;">🎁</span>
+                <span id="packNameLabel" style="margin-top:10px; font-weight:bold;">青パック</span>
+            </div>
+        </div>
+
+        <!-- フォルダ選択用インプット (webkitdirectoryでフォルダー指定) -->
+        <input type="file" id="folderInput" webkitdirectory directory multiple accept="image/*">
+        
+        <button class="menu-btn" style="margin-top:5px; background:#27ae60;" onclick="triggerFolderSelect()">📁 写真フォルダーを選ぶ</button>
+        <button class="menu-btn" style="margin-top:5px; background:#e67e22;" id="openPackBtn" onclick="tryOpenPack()" disabled style="opacity:0.5;">✨ パックを開封する！</button>
+        <button class="btn-sub" style="margin-top:5px; width:100%; max-width:280px;" onclick="goToMenu()">もどる</button>
+    </div>
+
+    <!-- 4. 開封演出画面 -->
+    <div id="openingScreen" class="screen">
+        <h2>パック開封！</h2>
+        <div style="flex:1; display:flex; align-items:center; justify-content:center;">
+            <div class="rip-pack" id="ripPackObj" onclick="executeRip()">
+                <span>タップして<br>開封！！</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. 獲得カード閲覧・スワイプ＆3D画面 -->
+    <div id="cardResultScreen" class="screen">
+        <div id="rarityHeader" style="font-size:1.2rem; font-weight:bold; color:#f1c40f; margin-bottom:5px;">★☆☆</div>
+        <p style="font-size:0.75rem; color:#aaa; margin:0 0 10px 0;">左右スワイプで切替 / ドラッグで3D傾き</p>
+        
+        <div class="card-view-container" id="cardContainer">
+            <div class="card-3d-box" id="card3dBox">
+                <canvas class="card-canvas" id="resultCanvas" width="600" height="840"></canvas>
+                <div class="holo-overlay" id="holoOverlay"></div>
+            </div>
+        </div>
+
+        <div class="action-bar">
+            <button class="btn-sub" onclick="exitCardView()">終了 / もどる</button>
+            <button class="btn-main" onclick="downloadCurrentCard()">ダウンロード</button>
+        </div>
+    </div>
+
+    <!-- 6. 獲得カード一覧 (図鑑) 画面 -->
+    <div id="dexScreen" class="screen">
+        <h2>獲得カード図鑑</h2>
+        <div class="dex-grid" id="dexGrid">
+            <!-- 動的生成 -->
+        </div>
+        <div style="margin-top:15px; width:90%; max-width:320px;">
+            <button class="btn-sub" style="width:100%;" onclick="goToMenu()">もどる</button>
+        </div>
+    </div>
+
+<script>
+    // 状態管理
+    let currentPackType = 1;
+    let loadedImageObjects = []; // 選択されたフォルダ内の全画像オブジェクト配列
+    let openedBatchCards = []; // 今回開いたパックのカード群 (5枚)
+    let currentCardIndex = 0;
+    let collectionDex = JSON.parse(localStorage.getItem('pocket_mon_dex') || '[]');
+
+    function showScreen(screenId) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(screenId).classList.add('active');
+    }
+
+    function goToTitle() { showScreen('titleScreen'); }
+    function goToMenu() { showScreen('menuScreen'); }
+    function startPackSelect() { showScreen('packSelectScreen'); }
+
+    function selectPack(type) {
+        currentPackType = type;
+        document.querySelectorAll('.pack-item').forEach((el, idx) => {
+            el.classList.toggle('selected', idx === type);
+        });
+        const names = ["赤パック (炎)", "青パック (水)", "緑パック (草)"];
+        document.getElementById('packNameLabel').innerText = names[type];
+    }
+
+    // フォルダ選択ボタン
+    function triggerFolderSelect() {
+        document.getElementById('folderInput').click();
+    }
+
+    // フォルダ内ファイル読み込み処理
+    document.getElementById('folderInput').addEventListener('change', function(e) {
+        const files = Array.from(e.target.files).filter(file => file.type.startsWith('image/'));
+        
+        if (files.length === 0) {
+            alert('画像ファイルが見つかりませんでした。別のフォルダを選んでください。');
+            return;
+        }
+
+        const statusText = document.getElementById('folderStatusText');
+        statusText.innerText = `📂 読み込み中... (0 / ${files.length}枚)`;
+        
+        loadedImageObjects = [];
+        let loadedCount = 0;
+
+        files.forEach(file => {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    loadedImageObjects.push(img);
+                    loadedCount++;
+                    statusText.innerText = `📁 読み込み完了: ${loadedCount}枚の画像を使用します`;
+                    
+                    if (loadedCount === files.length) {
+                        // 読み込み完了したら開封ボタンを有効化
+                        const openBtn = document.getElementById('openPackBtn');
+                        openBtn.disabled = false;
+                        openBtn.style.opacity = '1';
+                    }
+                }
+                img.src = event.target.result;
+            }
+            reader.readAsDataURL(file);
+        });
+    });
+
+    // 「パックを開封する！」ボタンが押されたとき
+    function tryOpenPack() {
+        if (loadedImageObjects.length === 0) {
+            alert('先に写真フォルダを選択してください！');
+            return;
+        }
+        generatePackCards(); // フォルダ内の画像からランダムに5枚カードを生成
+        showScreen('openingScreen');
+        document.getElementById('ripPackObj').classList.remove('ripping');
+    }
+
+    // カード生成エンジン（フォルダ内からランダム抽出）
+    const adjList = ["伝説の", "幻の", "ひなたぼっこの", "爆走する", "お寝坊な", "ピカピカの", "気まぐれな", "覚醒した"];
+    const nounList = ["メモリー", "スナップ", "ワンダー", "モーメント", "フォトン", "ブレイク", "ガーディアン"];
+    const attackList = ["思い出ビーム", "シャッターラッシュ", "エモい衝撃", "フラッシュ記憶", "無限メモリー", "超光速スナップ"];
+
+    function generatePackCards() {
+        openedBatchCards = [];
+        
+        for(let i = 0; i < 5; i++) {
+            // フォルダ内の画像からランダムに1枚選ぶ
+            const randomImg = loadedImageObjects[Math.floor(Math.random() * loadedImageObjects.length)];
+
+            // レアリティ抽選
+            let rRand = Math.random();
+            let rarity = "★☆☆";
+            if(rRand > 0.92) rarity = "UR";
+            else if(rRand > 0.80) rarity = "SSR";
+            else if(rRand > 0.65) rarity = "SR";
+            else if(rRand > 0.45) rarity = "★★★";
+            else if(rRand > 0.25) rarity = "★★☆";
+
+            const cardData = {
+                id: 'card_' + Date.now + '_' + Math.random(),
+                name: adjList[Math.floor(Math.random()*adjList.length)] + nounList[Math.floor(Math.random()*nounList.length)],
+                hp: Math.floor(Math.random() * 200) + 50,
+                attack: attackList[Math.floor(Math.random()*attackList.length)],
+                damage: Math.floor(Math.random() * 120) + 20,
+                rarity: rarity,
+                date: new Date().toLocaleDateString()
+            };
+
+            // Canvasでレンダリングして保存
+            cardData.dataUrl = renderCardToDataURL(cardData, randomImg);
+            openedBatchCards.push(cardData);
+            collectionDex.unshift(cardData);
+        }
+        localStorage.setItem('pocket_mon_dex', JSON.stringify(collectionDex));
+    }
+
+    // キャンバスに描画してDataURLを返す関数
+    function renderCardToDataURL(card, userImg) {
+        const c = document.createElement('canvas');
+        c.width = 600; c.height = 840;
+        const ctx = c.getContext('2d');
+
+        // 背景
+        const grad = ctx.createLinearGradient(0, 0, 600, 840);
+        if(card.rarity === "UR" || card.rarity === "SSR") {
+            grad.addColorStop(0, '#f1c40f'); grad.addColorStop(0.5, '#e74c3c'); grad.addColorStop(1, '#9b59b6');
+        } else if(card.rarity === "SR" || card.rarity === "★★★") {
+            grad.addColorStop(0, '#9b59b6'); grad.addColorStop(1, '#2980b9');
+        } else {
+            grad.addColorStop(0, '#34495e'); grad.addColorStop(1, '#1a1a2e');
+        }
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 600, 840);
+
+        // フレーム枠
+        ctx.strokeStyle = (card.rarity === "UR" || card.rarity === "SSR") ? '#fff' : '#f1c40f';
+        ctx.lineWidth = 14;
+        ctx.strokeRect(20, 20, 560, 800);
+
+        // ヘッダー
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(35, 35, 530, 70);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 30px sans-serif';
+        ctx.fillText(card.name, 55, 80);
+        ctx.fillStyle = '#f1c40f';
+        ctx.fillText(`HP ${card.hp}`, 430, 80);
+
+        // 写真エリア
+        ctx.fillStyle = '#000';
+        ctx.fillRect(50, 130, 500, 420);
+        
+        const iw = userImg.width, ih = userImg.height;
+        let sw, sh, sx, sy;
+        if (iw / ih > 500 / 420) {
+            sh = ih; sw = ih * (500 / 420); sx = (iw - sw) / 2; sy = 0;
+        } else {
+            sw = iw; sh = iw / (500 / 420); sx = 0; sy = (ih - sh) / 2;
+        }
+        ctx.drawImage(userImg, sx, sy, sw, sh, 50, 130, 500, 420);
+
+        ctx.strokeStyle = '#bdc3c7';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(50, 130, 500, 420);
+
+        // 技エリア
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(35, 570, 530, 160);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 24px sans-serif';
+        ctx.fillText(`⚡ ${card.attack}`, 60, 620);
+        ctx.font = 'bold 28px sans-serif';
+        ctx.fillText(card.damage, 490, 620);
+
+        // レアリティ
+        ctx.font = 'bold 26px sans-serif';
+        ctx.fillStyle = '#f1c40f';
+        ctx.fillText(card.rarity, 60, 775);
+
+        return c.toDataURL('image/png');
+    }
+
+    // パック開封演出
+    function executeRip() {
+        const ripObj = document.getElementById('ripPackObj');
+        ripObj.classList.add('ripping');
+        setTimeout(() => {
+            currentCardIndex = 0;
+            showCardResultScreen();
+        }, 700);
+    }
+
+    function showCardResultScreen() {
+        showScreen('cardResultScreen');
+        renderCurrentCardView();
+    }
+
+    function renderCurrentCardView() {
+        const card = openedBatchCards[currentCardIndex];
+        document.getElementById('rarityHeader').innerText = `【 ${card.rarity} 】 (${currentCardIndex + 1} / 5枚)`;
+        
+        const canvas = document.getElementById('resultCanvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        img.onload = function() {
+            // 事前作成されたdataUrlから直接imgに読み込ませて再描画
+            const drawImg = new Image();
+            drawImg.onload = function() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(drawImg, 0, 0);
+            }
+            drawImg.src = card.dataUrl;
+        }
+        img.src = card.dataUrl;
+    }
+
+    // 図鑑
+    function openDex() {
+        showScreen('dexScreen');
+        const grid = document.getElementById('dexGrid');
+        grid.innerHTML = '';
+        
+        if(collectionDex.length === 0) {
+            grid.innerHTML = '<p style="grid-column: span 3; text-align:center; color:#888;">まだカードがありません。パックを開けよう！</p>';
+            return;
+        }
+
+        collectionDex.forEach((card, index) => {
+            const item = document.createElement('div');
+            item.className = 'dex-item';
+            item.innerHTML = `<img src="${card.dataUrl}" alt="card">`;
+            item.onclick = function() {
+                openedBatchCards = [card];
+                currentCardIndex = 0;
+                showCardResultScreen();
+            };
+            grid.appendChild(item);
+        });
+    }
+
+    function exitCardView() { goToMenu(); }
+
+    function downloadCurrentCard() {
+        const canvas = document.getElementById('resultCanvas');
+        const link = document.createElement('a');
+        link.download = `pocket_mon_card_${Date.now()}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    }
+
+    // 3Dチルト＆スワイプ操作
+    const cardBox = document.getElementById('card3dBox');
+    const holo = document.getElementById('holoOverlay');
+    const cardContainer = document.getElementById('cardContainer');
+    const pack3dArea = document.getElementById('pack3dArea');
+    const pack3dObj = document.getElementById('pack3dObj');
+
+    let isDragging = false, startX = 0, startY = 0, rotX = 0, rotY = 0;
+
+    cardContainer.addEventListener('pointerdown', (e) => {
+        isDragging = true; startX = e.clientX; startY = e.clientY;
+    });
+
+    window.addEventListener('pointermove', (e) => {
+        if(!isDragging) return;
+        let dx = e.clientX - startX, dy = e.clientY - startY;
+        rotY = dx * 0.4; rotX = -dy * 0.4;
+        cardBox.style.transform = `rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+
+        let px = (e.clientX / window.innerWidth) * 100;
+        let py = (e.clientY / window.innerHeight) * 100;
+        holo.style.setProperty('--x', px + '%');
+        holo.style.setProperty('--y', py + '%');
+    });
+
+    window.addEventListener('pointerup', () => {
+        isDragging = false; rotX = 0; rotY = 0;
+        cardBox.style.transform = `rotateX(0deg) rotateY(0deg)`;
+    });
+
+    // パック3Dプレビュー
+    let packDrag = false, pStartX = 0, pRotY = 0;
+    pack3dArea.addEventListener('pointerdown', (e) => {
+        packDrag = true; pStartX = e.clientX;
+    });
+    window.addEventListener('pointermove', (e) => {
+        if(!packDrag) return;
+        let dx = e.clientX - pStartX;
+        pRotY = dx * 0.8;
+        pack3dObj.style.transform = `rotateY(${pRotY}deg)`;
+    });
+    window.addEventListener('pointerup', () => {
+        packDrag = false;
+        pack3dObj.style.transform = `rotateY(0deg)`;
+    });
+
+    // スワイプ切り替え
+    let touchStartX = 0;
+    cardContainer.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; });
+    cardContainer.addEventListener('touchend', (e) => {
+        let diff = e.changedTouches[0].clientX - touchStartX;
+        if(Math.abs(diff) > 50 && openedBatchCards.length > 1) {
+            if(diff < 0) currentCardIndex = (currentCardIndex + 1) % openedBatchCards.length;
+            else currentCardIndex = (currentCardIndex - 1 + openedBatchCards.length) % openedBatchCards.length;
+            renderCurrentCardView();
+        }
+    });
+</script>
+
+</body>
+</html>
